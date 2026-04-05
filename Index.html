@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>US States VMS Lookup</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --surface: #131929;
+    --surface2: #1b2438;
+    --border: #243050;
+    --accent: #3b82f6;
+    --accent2: #06b6d4;
+    --compact-color: #22c55e;
+    --single-color: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --card-glow: 0 0 0 1px #243050, 0 4px 24px rgba(59,130,246,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Sora', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 16px 80px;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .header-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: var(--accent2);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  h1 {
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, #e2e8f0 0%, #94a3b8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    margin-top: 8px;
+    font-weight: 300;
+  }
+
+  .search-container {
+    width: 100%;
+    max-width: 560px;
+    position: relative;
+    margin-bottom: 32px;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    pointer-events: none;
+    font-size: 18px;
+  }
+
+  #stateInput {
+    width: 100%;
+    padding: 16px 16px 16px 46px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  #stateInput:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+  }
+
+  #stateInput::placeholder { color: var(--muted); }
+
+  .dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0; right: 0;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 100;
+    display: none;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    max-height: 240px;
+    overflow-y: auto;
+  }
+
+  .dropdown.show { display: block; }
+
+  .dropdown-item {
+    padding: 11px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.15s;
+  }
+
+  .dropdown-item:hover, .dropdown-item.active {
+    background: rgba(59,130,246,0.15);
+    color: #fff;
+  }
+
+  .dropdown-item .abbr {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--accent2);
+    background: rgba(6,182,212,0.1);
+    padding: 2px 7px;
+    border-radius: 4px;
+    min-width: 34px;
+    text-align: center;
+  }
+
+  /* Result Card */
+  #resultCard {
+    width: 100%;
+    max-width: 800px;
+    display: none;
+    animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  #resultCard.show { display: block; }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .card-header {
+    background: linear-gradient(135deg, var(--surface) 0%, #162034 100%);
+    border: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    padding: 24px 28px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    border-bottom: none;
+  }
+
+  .state-abbr-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--accent);
+    background: rgba(59,130,246,0.1);
+    border: 1px solid rgba(59,130,246,0.25);
+    border-radius: 10px;
+    padding: 8px 16px;
+    letter-spacing: 0.05em;
+    min-width: 80px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .state-name {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .compact-badge {
+    display: inline-block;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-top: 4px;
+  }
+
+  .compact-badge.compact {
+    background: rgba(34,197,94,0.12);
+    color: var(--compact-color);
+    border: 1px solid rgba(34,197,94,0.3);
+  }
+
+  .compact-badge.single {
+    background: rgba(245,158,11,0.12);
+    color: var(--single-color);
+    border: 1px solid rgba(245,158,11,0.3);
+  }
+
+  .card-body {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 16px 16px;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+
+  .info-block {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    position: relative;
+  }
+
+  .info-block:nth-child(2n) { border-right: none; }
+  .info-block:nth-last-child(-n+2) { border-bottom: none; }
+
+  .info-block.full-width {
+    grid-column: 1 / -1;
+    border-right: none;
+  }
+
+  .info-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .info-value {
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .info-value.empty {
+    color: var(--muted);
+    font-style: italic;
+    font-size: 13px;
+  }
+
+  .vms-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 2px;
+  }
+
+  .vms-tag {
+    background: rgba(59,130,246,0.1);
+    border: 1px solid rgba(59,130,246,0.2);
+    color: #93c5fd;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 6px;
+    transition: background 0.15s;
+  }
+
+  .vms-tag:hover {
+    background: rgba(59,130,246,0.2);
+  }
+
+  .tz-badge {
+    display: inline-block;
+    background: rgba(6,182,212,0.1);
+    border: 1px solid rgba(6,182,212,0.2);
+    color: var(--accent2);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 3px 12px;
+    border-radius: 6px;
+  }
+
+  /* Bordering States */
+  .border-states {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 2px;
+  }
+
+  .border-state-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 13px;
+    padding: 5px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .border-state-chip:hover {
+    border-color: var(--accent);
+    background: rgba(59,130,246,0.1);
+    color: #fff;
+  }
+
+  .border-state-chip .chip-abbr {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--accent2);
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    max-width: 560px;
+  }
+
+  .empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.4;
+  }
+
+  .empty-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 6px;
+  }
+
+  .empty-sub { font-size: 13px; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  @media (max-width: 600px) {
+    .info-grid { grid-template-columns: 1fr; }
+    .info-block { border-right: none !important; }
+    .info-block:last-child { border-bottom: none !important; }
+    .info-block.full-width { border-bottom: 1px solid var(--border) !important; }
+    .card-header { flex-wrap: wrap; gap: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="header-tag">Recruiter Tool</span>
+  <h1>US States VMS Lookup</h1>
+  <p class="subtitle">Type a state name to instantly view VMS vendors, bordering states & details</p>
+</div>
+
+<div class="search-container">
+  <span class="search-icon">🔍</span>
+  <input type="text" id="stateInput" placeholder="Search by state name or abbreviation..." autocomplete="off" spellcheck="false">
+  <div class="dropdown" id="dropdown"></div>
+</div>
+
+<div id="resultCard"></div>
+
+<div class="empty-state" id="emptyState">
+  <div class="empty-icon">🗺️</div>
+  <div class="empty-title">Search for a state above</div>
+  <div class="empty-sub">All VMS vendors, bordering states, time zone, and compact status will appear here</div>
+</div>
+
+<script>
+const STATES = [{"State": "Alabama", "Abb.": "AL", "VMS": "Aya, Hallmark-ASC, Medefis", "Notes / Vendors": "AYA, MDFS, Hallmark (Ascension)", "Compact": "Compact", "Time Zone": "CST", "Bordering States": "FL, GA, MS, TN"}, {"State": "Alaska", "Abb.": "AK", "VMS": "Medefis, Aya", "Notes / Vendors": "AYA, MDFS, Liquid Compass (Parallon)", "Compact": "Single", "Time Zone": "HST", "Bordering States": ""}, {"State": "Arizona", "Abb.": "AZ", "VMS": "AHSA, Medefis, Healthtrust, FocusOne", "Notes / Vendors": "AYA, MDFS, AHSA, FocusOne, TRS, MedSol", "Compact": "Compact", "Time Zone": "MST", "Bordering States": "CA, CO, NV, NM, UT"}, {"State": "Arkansas", "Abb.": "AR", "VMS": "Aya, Medefis, Healthtrust, TRS", "Notes / Vendors": "AYA, Healthtrust, Shiftwise, Supplemental", "Compact": "Compact", "Time Zone": "CST", "Bordering States": "LA, MS, MO, OK, TN, TX"}, {"State": "California", "Abb.": "CA", "VMS": "Kaiser, Shiftwise, Hallmark, HealthTrust, Aya", "Notes / Vendors": "AYA, MedSol, MDFS, Fieldglass, Hallmark, Intellify", "Compact": "Single", "Time Zone": "PST", "Bordering States": "AZ, NV, OR"}, {"State": "Colorado", "Abb.": "CO", "VMS": "Medefis, HealthTrust, TRS", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "MST", "Bordering States": "AZ, KS, NE, NM, OK, UT, WY"}, {"State": "Connecticut", "Abb.": "CT", "VMS": "Shiftwise", "Notes / Vendors": "", "Compact": "Single", "Time Zone": "EST", "Bordering States": "MA, NY, RI"}, {"State": "Delaware", "Abb.": "DE", "VMS": "Aya", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "EST", "Bordering States": "MD, NJ, PA"}, {"State": "Florida", "Abb.": "FL", "VMS": "Aya, HealthTrust, Hallmark, Intellify", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "EST, CST", "Bordering States": "AL, GA"}, {"State": "Georgia", "Abb.": "GA", "VMS": "Aya, HWL, Shiftwise, Atrium, PrimeHealth", "Notes / Vendors": "MedSol, Shiftwise, HWL, AYA", "Compact": "Compact", "Time Zone": "EST", "Bordering States": "AL, FL, NC, SC, TN"}, {"State": "Hawaii", "Abb.": "HI", "VMS": "Medefis, Kaiser, AYA", "Notes / Vendors": "", "Compact": "Single", "Time Zone": "HST", "Bordering States": ""}, {"State": "Idaho", "Abb.": "ID", "VMS": "Medefis, MedSol, Davin", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "MST, PST", "Bordering States": "MT, NV, OR, UT, WA, WY"}, {"State": "Illinois", "Abb.": "IL", "VMS": "AYA, AHSA, FocusOne, Magnit (Carle), Medefis, MedSol, Supplemental, Hallmark", "Notes / Vendors": "AHSA, AYA, FocusOne", "Compact": "Compact", "Time Zone": "CST", "Bordering States": "IN, IA, MI, KY, MO, WI"}, {"State": "Indiana", "Abb.": "IN", "VMS": "Aya, Hallmark, MedSol, FocusOne, TRS", "Notes / Vendors": "AYA, MedSol, Ascension (Hallmark)", "Compact": "Compact", "Time Zone": "EST, CST", "Bordering States": "IL, KY, MI, OH"}, {"State": "Iowa", "Abb.": "IA", "VMS": "AHSA, Hallmark, Supplemental Health", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "CST", "Bordering States": "IL, MN, MO, NE, SD, WI"}, {"State": "Kansas", "Abb.": "KS", "VMS": "Hallmark, TRS, Supplemental Health", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "CST, MST", "Bordering States": "CO, NE, MO, OK"}, {"State": "Kentucky", "Abb.": "KY", "VMS": "AYA, HealthTrust", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "EST, CST", "Bordering States": "IL, IN, MO, OH, TN, VA, WV"}, {"State": "Louisiana", "Abb.": "LA", "VMS": "", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "CST", "Bordering States": "TX, AR, MS"}, {"State": "Maine", "Abb.": "ME", "VMS": "Medefis", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "EST", "Bordering States": "NH"}, {"State": "Maryland", "Abb.": "MD", "VMS": "Hallmark-ASC, AYA, Medefis, AHSA", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "EST", "Bordering States": "DE, PA, VA, WV, DC"}, {"State": "Massachusetts", "Abb.": "MA", "VMS": "AHSA, Intellify, AYA", "Notes / Vendors": "HWL", "Compact": "Single", "Time Zone": "EST", "Bordering States": "CT, NH, NY, RI, VT"}, {"State": "Michigan", "Abb.": "MI", "VMS": "Magnit (Henry Ford), Hallmark", "Notes / Vendors": "Ascension, AHSA, AYA, MDFS", "Compact": "Single", "Time Zone": "EST, CST", "Bordering States": "IL, IN, MN, OH, WI"}, {"State": "Minnesota", "Abb.": "MN", "VMS": "Aya, AHSA, Medefis", "Notes / Vendors": "Intellify", "Compact": "Single", "Time Zone": "CST", "Bordering States": "IA, MI, ND, SD, WI"}, {"State": "Mississippi", "Abb.": "MS", "VMS": "", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "CST", "Bordering States": "AL, AR, LA, TN"}, {"State": "Missouri", "Abb.": "MO", "VMS": "AYA, HealthTrust, Medefis", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "CST", "Bordering States": "AR, IL, IA, KS, KY, NE, OK, TN"}, {"State": "Montana", "Abb.": "MT", "VMS": "Davin", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "MST", "Bordering States": "ID, ND, SD, WY"}, {"State": "Nebraska", "Abb.": "NE", "VMS": "FocusOne, Medefis", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "CST, MST", "Bordering States": "CO, IA, KS, MO, SD, WY"}, {"State": "Nevada", "Abb.": "NV", "VMS": "", "Notes / Vendors": "", "Compact": "Single", "Time Zone": "PST, MST", "Bordering States": "AZ, CA, ID, OR, UT"}, {"State": "New Hampshire", "Abb.": "NH", "VMS": "", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "EST", "Bordering States": "ME, MA, VT"}, {"State": "New Jersey", "Abb.": "NJ", "VMS": "AHS, Magnit (Hackensack), Prime Health, Hallmark", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "EST", "Bordering States": "DE, NY, PA"}, {"State": "New Mexico", "Abb.": "NM", "VMS": "Aya, Medefis, FocusOne", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "MST", "Bordering States": "AZ, CO, OK, TX, UT"}, {"State": "New York", "Abb.": "NY", "VMS": "Magnit (NYCHH), Shiftwise, Adaptive, HWL, Davin, Liquid Compass, TriageStaff, Medefis", "Notes / Vendors": "NYC & Upstate split vendors", "Compact": "Single", "Time Zone": "EST", "Bordering States": "CT, MA, NJ, PA, RI, VT"}, {"State": "North Carolina", "Abb.": "NC", "VMS": "Magnit, Aya, Medefis", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "EST", "Bordering States": "GA, SC, TN, VA"}, {"State": "North Dakota", "Abb.": "ND", "VMS": "FocusOne", "Notes / Vendors": "Altru Health", "Compact": "Compact", "Time Zone": "CST, MST", "Bordering States": "MN, MT, SD"}, {"State": "Ohio", "Abb.": "OH", "VMS": "Aya, Hallmark, Magnit", "Notes / Vendors": "AYA, Hallmark, Summa Health, MDFS", "Compact": "Compact", "Time Zone": "EST", "Bordering States": "IN, KY, MI, PA, WV"}, {"State": "Oklahoma", "Abb.": "OK", "VMS": "Hallmark, Adaptive, Medefis, TRS", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "CST", "Bordering States": "AR, CO, KS, MO, NM, TX"}, {"State": "Oregon", "Abb.": "OR", "VMS": "Aya, MedSol, TRS, FocusOne, Kaiser, Medefis", "Notes / Vendors": "", "Compact": "Single", "Time Zone": "PST, MST", "Bordering States": "CA, ID, NV, WA"}, {"State": "Pennsylvania", "Abb.": "PA", "VMS": "Aya, Shiftwise, Medefis, Supplemental Health", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "EST", "Bordering States": "DE, MD, NJ, NY, OH, WV"}, {"State": "Rhode Island", "Abb.": "RI", "VMS": "Aya", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "EST", "Bordering States": "CT, MA"}, {"State": "South Carolina", "Abb.": "SC", "VMS": "", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "EST", "Bordering States": "GA, NC"}, {"State": "South Dakota", "Abb.": "SD", "VMS": "FocusOne", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "CST, MST", "Bordering States": "IA, MN, MT, NE, ND, WY"}, {"State": "Tennessee", "Abb.": "TN", "VMS": "Hallmark-ASC, HealthTrust, Aya, Supplemental, Intellify, AHSA", "Notes / Vendors": "AYA, MDFS", "Compact": "Compact", "Time Zone": "EST, CST", "Bordering States": "AL, AR, GA, KY, MS, MO, NC, VA"}, {"State": "Texas", "Abb.": "TX", "VMS": "Hallmark-ASC, AYA, Supplemental, Medefis, TRS, HealthTrust", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "CST, MST", "Bordering States": "AR, LA, NM, OK"}, {"State": "Utah", "Abb.": "UT", "VMS": "Medefis", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "MST", "Bordering States": "AZ, CO, ID, NV, NM, WY"}, {"State": "Vermont", "Abb.": "VT", "VMS": "", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "EST", "Bordering States": "MA, NH, NY"}, {"State": "Virginia", "Abb.": "VA", "VMS": "AYA, Medefis, HealthTrust", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "EST", "Bordering States": "KY, MD, NC, TN, WV, DC"}, {"State": "Washington", "Abb.": "WA", "VMS": "Aya, Medefis, Simplify", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "PST", "Bordering States": "ID, OR"}, {"State": "West Virginia", "Abb.": "WV", "VMS": "", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "EST", "Bordering States": "KY, MD, OH, PA, VA"}, {"State": "Wisconsin", "Abb.": "WI", "VMS": "Hallmark-ASC, AYA, Medefis, AHSA, Supplemental Health", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "CST", "Bordering States": "IL, MI, IA, MN"}, {"State": "Wyoming", "Abb.": "WY", "VMS": "", "Notes / Vendors": "", "Compact": "Compact", "Time Zone": "MST", "Bordering States": "CO, MT, NE, SD"}];
+
+// Build abbr -> full name map
+const abbrToState = {};
+STATES.forEach(s => { abbrToState[s["Abb."]] = s.State; });
+
+const input = document.getElementById('stateInput');
+const dropdown = document.getElementById('dropdown');
+const resultCard = document.getElementById('resultCard');
+const emptyState = document.getElementById('emptyState');
+
+let activeIdx = -1;
+let filtered = [];
+
+input.addEventListener('input', () => {
+  const q = input.value.trim().toLowerCase();
+  activeIdx = -1;
+  if (!q) { dropdown.classList.remove('show'); return; }
+  filtered = STATES.filter(s =>
+    s.State.toLowerCase().startsWith(q) ||
+    s["Abb."].toLowerCase() === q ||
+    s.State.toLowerCase().includes(q)
+  );
+  renderDropdown();
+});
+
+input.addEventListener('keydown', e => {
+  const items = dropdown.querySelectorAll('.dropdown-item');
+  if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = Math.min(activeIdx + 1, items.length - 1); highlight(items); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = Math.max(activeIdx - 1, 0); highlight(items); }
+  else if (e.key === 'Enter') { if (activeIdx >= 0 && filtered[activeIdx]) selectState(filtered[activeIdx]); }
+  else if (e.key === 'Escape') dropdown.classList.remove('show');
+});
+
+function highlight(items) {
+  items.forEach((el, i) => el.classList.toggle('active', i === activeIdx));
+  if (activeIdx >= 0) items[activeIdx]?.scrollIntoView({ block: 'nearest' });
+}
+
+function renderDropdown() {
+  if (!filtered.length) { dropdown.classList.remove('show'); return; }
+  dropdown.innerHTML = filtered.map((s, i) =>
+    `<div class="dropdown-item" data-idx="${i}">
+      <span class="abbr">${s["Abb."]}</span>
+      <span>${s.State}</span>
+    </div>`
+  ).join('');
+  dropdown.classList.add('show');
+  dropdown.querySelectorAll('.dropdown-item').forEach((el, i) => {
+    el.addEventListener('mousedown', e => { e.preventDefault(); selectState(filtered[i]); });
+  });
+}
+
+function selectState(state) {
+  input.value = state.State;
+  dropdown.classList.remove('show');
+  showResult(state);
+}
+
+function showResult(state) {
+  emptyState.style.display = 'none';
+  resultCard.classList.remove('show');
+  void resultCard.offsetWidth; // reflow for animation
+
+  const vmsArr = state.VMS ? state.VMS.split(',').map(v => v.trim()).filter(Boolean) : [];
+  const notesArr = state["Notes / Vendors"] ? state["Notes / Vendors"].split(',').map(v => v.trim()).filter(Boolean) : [];
+  const borderingArr = state["Bordering States"] ? state["Bordering States"].split(',').map(v => v.trim()).filter(Boolean) : [];
+  const isCompact = state.Compact === 'Compact';
+
+  const vmsTags = vmsArr.length
+    ? `<div class="vms-tags">${vmsArr.map(v => `<span class="vms-tag">${v}</span>`).join('')}</div>`
+    : `<span class="info-value empty">No VMS listed</span>`;
+
+  const notesTags = notesArr.length
+    ? `<div class="vms-tags">${notesArr.map(v => `<span class="vms-tag" style="background:rgba(168,85,247,0.1);border-color:rgba(168,85,247,0.25);color:#c4b5fd;">${v}</span>`).join('')}</div>`
+    : `<span class="info-value empty">—</span>`;
+
+  const borderChips = borderingArr.length
+    ? `<div class="border-states">${borderingArr.map(abbr => {
+        const fullName = abbrToState[abbr] || abbr;
+        return `<span class="border-state-chip" onclick="selectByAbbr('${abbr}')"><span class="chip-abbr">${abbr}</span>${fullName}</span>`;
+      }).join('')}</div>`
+    : `<span class="info-value empty">No bordering states (island state)</span>`;
+
+  resultCard.innerHTML = `
+    <div class="card-header">
+      <div class="state-abbr-badge">${state["Abb."]}</div>
+      <div>
+        <div class="state-name">${state.State}</div>
+        <span class="compact-badge ${isCompact ? 'compact' : 'single'}">${state.Compact} State</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-grid">
+        <div class="info-block full-width">
+          <span class="info-label">🏥 VMS Vendors</span>
+          ${vmsTags}
+        </div>
+        <div class="info-block full-width">
+          <span class="info-label">📋 Notes / Additional Vendors</span>
+          ${notesTags}
+        </div>
+        <div class="info-block">
+          <span class="info-label">🕐 Time Zone</span>
+          <span class="info-value"><span class="tz-badge">${state["Time Zone"] || '—'}</span></span>
+        </div>
+        <div class="info-block">
+          <span class="info-label">📜 Compact Status</span>
+          <span class="info-value"><span class="compact-badge ${isCompact ? 'compact' : 'single'}">${state.Compact}</span></span>
+        </div>
+        <div class="info-block full-width">
+          <span class="info-label">🗺️ Bordering States — click to explore</span>
+          ${borderChips}
+        </div>
+      </div>
+    </div>
+  `;
+  resultCard.classList.add('show');
+}
+
+function selectByAbbr(abbr) {
+  const state = STATES.find(s => s["Abb."] === abbr);
+  if (state) { input.value = state.State; showResult(state); window.scrollTo({top: 0, behavior: 'smooth'}); }
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-container')) dropdown.classList.remove('show');
+});
+</script>
+</body>
+</html>
